@@ -19,7 +19,7 @@ jobs:
 
       - name: Clone OpenWrt Official
         run: |
-          git clone --single-branch https://github.com openwrt
+          git clone --single-branch https://github.com/openwrt/openwrt.git openwrt
           cd openwrt
           git fetch --tags
           git checkout v24.10.5
@@ -35,13 +35,13 @@ jobs:
           PACKAGE_FILE="$GITHUB_WORKSPACE/packages.txt"
           cd openwrt
           
-          # 1. Áàçîâûé êîíôèã öåëåâîãî óñòðîéñòâà
+          # 1. ÃÃ Ã§Ã®Ã¢Ã»Ã© ÃªÃ®Ã­Ã´Ã¨Ã£ Ã¶Ã¥Ã«Ã¥Ã¢Ã®Ã£Ã® Ã³Ã±Ã²Ã°Ã®Ã©Ã±Ã²Ã¢Ã 
           echo "CONFIG_TARGET_mediatek=y" > .config
           echo "CONFIG_TARGET_mediatek_filogic=y" >> .config
           echo "CONFIG_TARGET_mediatek_filogic_DEVICE_openwrt_one=y" >> .config
           echo "CONFIG_TARGET_ROOTFS_INITRAMFS=y" >> .config
 
-          # 2. ×òåíèå ïàêåòîâ èç ôàéëà
+          # 2. Ã—Ã²Ã¥Ã­Ã¨Ã¥ Ã¯Ã ÃªÃ¥Ã²Ã®Ã¢ Ã¨Ã§ Ã´Ã Ã©Ã«Ã 
           if [ -f "$PACKAGE_FILE" ]; then
             echo "Processing packages.txt..."
             sed -e 's/#.*//' -e '/^$/d' "$PACKAGE_FILE" | sort -u | while read -r pkg; do
@@ -52,7 +52,7 @@ jobs:
             exit 1
           fi
 
-          # 3. Èíòåãðàöèÿ ñêðèïòà mtd-rs.sh
+          # 3. ÃˆÃ­Ã²Ã¥Ã£Ã°Ã Ã¶Ã¨Ã¿ Ã±ÃªÃ°Ã¨Ã¯Ã²Ã  mtd-rs.sh
           mkdir -p files/etc/scripts
           printf "#!/bin/sh\ninsmod mtd-rw i_want_a_brick=1\n" > files/etc/scripts/mtd-rs.sh
           chmod +x files/etc/scripts/mtd-rs.sh
@@ -67,7 +67,7 @@ jobs:
       - name: Generate Checksums
         run: |
           cd openwrt/bin/targets/mediatek/filogic/
-          # Ñîçäàåì ôàéë ñ õåøàìè äëÿ âñåõ îáðàçîâ
+          # Ã‘Ã®Ã§Ã¤Ã Ã¥Ã¬ Ã´Ã Ã©Ã« Ã± ÃµÃ¥Ã¸Ã Ã¬Ã¨ Ã¤Ã«Ã¿ Ã¢Ã±Ã¥Ãµ Ã®Ã¡Ã°Ã Ã§Ã®Ã¢
           sha256sum *-initramfs-kernel.itb > sha256sums.txt
           echo "Checksums generated:"
           cat sha256sums.txt
