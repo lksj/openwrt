@@ -43,7 +43,7 @@ jobs:
           # 1. Жесткое указание Таргета и Устройства
           echo "CONFIG_TARGET_mediatek=y" > .config
           echo "CONFIG_TARGET_mediatek_filogic=y" >> .config
-          echo "CONFIG_TARGET_mediatek_filogic_DEVICE_openwrt_one=y" >> .config
+          # echo "CONFIG_TARGET_mediatek_filogic_DEVICE_openwrt_one=y" >> .config
           echo "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_openwrt_one=y" >> .config
           echo "CONFIG_TARGET_ROOTFS_INITRAMFS=y" >> .config
 
