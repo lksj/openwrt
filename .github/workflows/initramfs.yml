@@ -39,6 +39,14 @@ jobs:
       - name: Update Feeds
         run: |
           cd openwrt
+
+          cat <<EOF > feeds.conf.default
+          src-git packages https://github.com
+          src-git luci https://github.com
+          src-git routing https://github.com
+          src-git telephony https://github.com
+          EOF
+          
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
