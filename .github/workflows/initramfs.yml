@@ -29,6 +29,13 @@ jobs:
           git fetch --tags
           git checkout v24.10.5
 
+      - name: Switch to GitHub Mirrors
+        run: |
+          cd openwrt
+          sed -i 's|https://git.openwrt.org|https://github.com|g' feeds.conf.default
+          sed -i 's|https://git.openwrt.org/project/luci.git|https://github.com|g' feeds.conf.default
+          sed -i 's|https://git.openwrt.org|https://github.com|g' feeds.conf.default
+        
       - name: Update Feeds
         run: |
           cd openwrt
