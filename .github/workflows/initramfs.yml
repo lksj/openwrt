@@ -1,0 +1,81 @@
+name: Build OpenWrt One (Tag v24.10.5)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential clang flex bison g++ gawk \
+            gettext git libncurses5-dev libssl-dev python3-distutils \
+            python3-setuptools rsync unzip zlib1g-dev swig libpython3-dev file wget
+
+      - name: Clone OpenWrt Official
+        run: |
+          git clone --single-branch https://github.com openwrt
+          cd openwrt
+          git fetch --tags
+          git checkout v24.10.5
+
+      - name: Update Feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Configure Firmware
+        run: |
+          PACKAGE_FILE="$GITHUB_WORKSPACE/packages.txt"
+          cd openwrt
+          
+          # 1. Базовый конфиг целевого устройства
+          echo "CONFIG_TARGET_mediatek=y" > .config
+          echo "CONFIG_TARGET_mediatek_filogic=y" >> .config
+          echo "CONFIG_TARGET_mediatek_filogic_DEVICE_openwrt_one=y" >> .config
+          echo "CONFIG_TARGET_ROOTFS_INITRAMFS=y" >> .config
+
+          # 2. Чтение пакетов из файла
+          if [ -f "$PACKAGE_FILE" ]; then
+            echo "Processing packages.txt..."
+            sed -e 's/#.*//' -e '/^$/d' "$PACKAGE_FILE" | sort -u | while read -r pkg; do
+              echo "CONFIG_PACKAGE_$pkg=y" >> .config
+            done
+          else
+            echo "::error::packages.txt not found!"
+            exit 1
+          fi
+
+          # 3. Интеграция скрипта mtd-rs.sh
+          mkdir -p files/etc/scripts
+          printf "#!/bin/sh\ninsmod mtd-rw i_want_a_brick=1\n" > files/etc/scripts/mtd-rs.sh
+          chmod +x files/etc/scripts/mtd-rs.sh
+          
+          make defconfig
+
+      - name: Compile Firmware
+        run: |
+          cd openwrt
+          make -j$(nproc) || make -j1 V=s
+
+      - name: Generate Checksums
+        run: |
+          cd openwrt/bin/targets/mediatek/filogic/
+          # Создаем файл с хешами для всех образов
+          sha256sum *-initramfs-kernel.itb > sha256sums.txt
+          echo "Checksums generated:"
+          cat sha256sums.txt
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenWrt-One-v24.10.5
+          path: |
+            openwrt/bin/targets/mediatek/filogic/*-initramfs-kernel.itb
+            openwrt/bin/targets/mediatek/filogic/sha256sums.txt
