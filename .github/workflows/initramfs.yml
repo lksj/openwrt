@@ -88,7 +88,7 @@ jobs:
       - name: Create images
         run: |
           cd openwrt
-          make -j$(nproc) install V=s || make -j1 install V=s
+          make -j$(nproc) target/install V=s || make -j1 target/install V=s
 
 
       - name: Generate Checksums
