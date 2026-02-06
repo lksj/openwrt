@@ -10,7 +10,7 @@ on:
 
   push:
     tags:
-      - 'v*-build' # Сработает при git push origin v1.2.3
+      - 'v*' # Сработает при git push origin v1.2.3
 
 
 jobs:
