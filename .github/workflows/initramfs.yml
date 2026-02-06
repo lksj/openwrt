@@ -85,6 +85,12 @@ jobs:
           cd openwrt
           make -j$(nproc) V=s || make -j1 V=s
 
+      - name: Create images
+        run: |
+          cd openwrt
+          make -j$(nproc) install V=s || make -j1 install V=s
+
+
       - name: Generate Checksums
         if: always()
         run: |
