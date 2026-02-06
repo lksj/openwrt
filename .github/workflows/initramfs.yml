@@ -106,7 +106,7 @@ jobs:
         with:
           name: OpenWrt-One-Build-Debug
           path: |
-            openwrt/bin/targets/mediatek/filogic/*-initramfs-kernel.itb
+            openwrt/bin/targets/mediatek/filogic/*-initramfs.itb
             openwrt/bin/targets/mediatek/filogic/sha256sums.txt
             openwrt/.config
             openwrt/logs/
