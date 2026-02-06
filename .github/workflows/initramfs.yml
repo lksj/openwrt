@@ -1,11 +1,18 @@
-name: Build OpenWrt One (Final Debug)
+name: Build OpenWrt One (Clean Modular)
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Имя тега для релиза'
+        required: true
+        default: 'v24.10.5-custom'
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -22,9 +29,9 @@ jobs:
             gettext git libncurses5-dev libssl-dev python3-distutils \
             python3-setuptools rsync unzip zlib1g-dev swig libpython3-dev file wget
 
-      - name: Clone and Checkout Tag
+      - name: Clone OpenWrt
         run: |
-          git clone --single-branch https://github.com/openwrt/openwrt.git openwrt
+          git clone --single-branch https://github.com openwrt
           cd openwrt
           git fetch --tags
           git checkout v24.10.5
@@ -32,81 +39,70 @@ jobs:
       - name: Update Feeds
         run: |
           cd openwrt
-          # Прямая замена на зеркала, которые работают прямо сейчас
-          cat > feeds.conf.default <<EOF
-          src-git packages https://github.com/openwrt/packages.git
-          src-git luci https://github.com/openwrt/luci.git
-          src-git routing https://github.com/openwrt-routing/packages.git
-          src-git telephony https://github.com/openwrt/telephony.git
-          EOF
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Configure Firmware
         run: |
-          PACKAGE_FILE="$GITHUB_WORKSPACE/packages.txt"
           cd openwrt
-          cat <<EOF > .config
-          CONFIG_TARGET_mediatek=y
-          CONFIG_TARGET_mediatek_filogic=y
-          CONFIG_TARGET_mediatek_filogic_DEVICE_openwrt_one=y
-          CONFIG_TARGET_ROOTFS_INITRAMFS=y
-          # Добавим принудительно, чтобы ImageBuilder точно знал, что делать
-          CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_openwrt_one=y
-          EOF
-
-          # 2. Пакеты из файла (если есть)
-          if [ -f "$GITHUB_WORKSPACE/packages.txt" ]; then
-          sed -e 's/#.*//' -e '/^$/d' "$GITHUB_WORKSPACE/packages.txt" | while read -r pkg; do
-          echo "CONFIG_PACKAGE_$pkg=y" >> .config
-          done
+          
+          # 1. Применяем конфиг железа (target.config)
+          if [ -f "$GITHUB_WORKSPACE/target.config" ]; then
+            sed -e 's/#.*//' -e '/^$/d' "$GITHUB_WORKSPACE/target.config" >> .config
           fi
 
-          # 3. Применяем и проверяем
-          make defconfig
-          echo "=== ИТОГОВЫЙ ТАРГЕТ В БИЛДЕ ==="
-          grep "CONFIG_TARGET_.*openwrt_one" .config
+          # 2. Добавляем пакеты (packages.txt)
+          if [ -f "$GITHUB_WORKSPACE/packages.txt" ]; then
+            sed -e 's/#.*//' -e '/^$/d' "$GITHUB_WORKSPACE/packages.txt" | sort -u | while read -r pkg; do
+              echo "CONFIG_PACKAGE_$pkg=y" >> .config
+            done
+          fi
 
+          # 3. Копируем внешний скрипт в структуру образа
+          if [ -f "$GITHUB_WORKSPACE/mtd-rs.sh" ]; then
+            mkdir -p files/etc/scripts
+            cp "$GITHUB_WORKSPACE/mtd-rs.sh" files/etc/scripts/mtd-rs.sh
+            chmod +x files/etc/scripts/mtd-rs.sh
+          fi
+          
+          make defconfig
 
       - name: Download Sources
         run: |
           cd openwrt
           make download -j8
-          find dl -size -1k -type f -delete
 
-      - name: Build Tools & Toolchain
+      - name: Build
         run: |
           cd openwrt
-          make tools/compile -j$(nproc) || make tools/compile -j1 V=s
-          make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
+          make -j$(nproc) || make -j1 V=s
+          make -j$(nproc) target/install
 
-      - name: Build Target & Packages
-        run: |
-          cd openwrt
-          make -j$(nproc) V=s || make -j1 V=s
-
-      - name: Create images
-        run: |
-          cd openwrt
-          make -j$(nproc) target/install V=s || make -j1 target/install V=s
-
-
-      - name: Generate Checksums
+      - name: Prepare Artifacts
         if: always()
         run: |
-          DIR="openwrt/bin/targets/mediatek/filogic/"
-          if [ -d "$DIR" ]; then
-            cd "$DIR"
-            sha256sum *-initramfs.itb > sha256sums.txt || true
-          fi
+          mkdir -p bin_out
+          find openwrt/bin/targets/mediatek/filogic/ -name "*-initramfs.itb" -exec cp {} bin_out/ \;
+          cp openwrt/.config bin_out/build.config
+          cp $GITHUB_WORKSPACE/packages.txt bin_out/installed_packages.txt || touch bin_out/installed_packages.txt
+          cd bin_out && sha256sum *.itb > sha256sums.txt || true
 
-      - name: Upload Artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Delete Old Releases
+        if: success()
+        uses: dev-drpradheep/delete-older-releases@v0.3.3
         with:
-          name: OpenWrt-One-Build-Debug
-          path: |
-            openwrt/bin/targets/mediatek/filogic/*-initramfs.itb
-            openwrt/bin/targets/mediatek/filogic/sha256sums.txt
-            openwrt/.config
-            openwrt/logs/
+          keep_latest: 3
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          body_path: bin_out/installed_packages.txt
+          files: |
+            bin_out/*.itb
+            bin_out/sha256sums.txt
+            bin_out/build.config
