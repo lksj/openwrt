@@ -97,7 +97,7 @@ jobs:
           DIR="openwrt/bin/targets/mediatek/filogic/"
           if [ -d "$DIR" ]; then
             cd "$DIR"
-            sha256sum *-initramfs-kernel.itb > sha256sums.txt || true
+            sha256sum *-initramfs.itb > sha256sums.txt || true
           fi
 
       - name: Upload Artifacts
