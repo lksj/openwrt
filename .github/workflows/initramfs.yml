@@ -45,12 +45,6 @@ jobs:
           git clone --branch v24.10.5 https://github.com/lksj/openwrt.git openwrt
           cd openwrt
 
-      - name: Update Feeds
-        run: |
-          cd openwrt
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-
       - name: Validate paths and files
         run: |
           # Формируем полные пути на основе $GITHUB_WORKSPACE
@@ -75,6 +69,13 @@ jobs:
             echo "Error: Directory $MTD_RS_SCRIPT does not exist."
             exit 1
           fi
+
+      - name: Update Feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
 
 
       - name: Configure Firmware
@@ -106,14 +107,14 @@ jobs:
           make -j$(nproc) || make -j1 V=s
           make -j$(nproc) target/install
 
-      - name: Prepare Artifacts
-        if: always()
-        run: |
-          mkdir -p bin_out
-          find openwrt/bin/targets/mediatek/filogic/ -name "*-initramfs.itb" -exec cp {} bin_out/ \;
-          cp openwrt/.config bin_out/build.config
-          cp $GITHUB_WORKSPACE/.build_date/packages.txt bin_out/installed_packages.txt || touch bin_out/installed_packages.txt
-          cd bin_out && sha256sum *.itb > sha256sums.txt || true
+#     - name: Prepare Artifacts
+#       if: always()
+#       run: |
+#         mkdir -p bin_out
+#         find openwrt/bin/targets/mediatek/filogic/ -name "*-initramfs.itb" -exec cp {} bin_out/ \;
+#         cp openwrt/.config bin_out/build.config
+#         cp $GITHUB_WORKSPACE/.build_date/packages.txt bin_out/installed_packages.txt || touch bin_out/installed_packages.txt
+#         cd bin_out && sha256sum *.itb > sha256sums.txt || true
 
       - name: Prepare Artifacts and Checksums
         run: |
