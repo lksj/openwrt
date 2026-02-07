@@ -16,7 +16,7 @@ env:
   BUILD_DATA_NAME: ".build_data"
   PACKAGES_LIST_NAME: "packages.txt"
   TARGET_CONFIG_NAME: "target.config"
-  MTD_RS_SCRIPT_NAME: "mtd_rs.sh"
+  MTD_RS_SCRIPT_NAME: "mtd-rs.sh"
 
 
 jobs:
