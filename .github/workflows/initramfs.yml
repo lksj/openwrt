@@ -61,12 +61,12 @@ jobs:
           fi
 
           if [ ! -f "$TARGET_CONFIG" ]; then
-            echo "Error: Directory $TARGET_CONFIG does not exist."
+            echo "Error: File $TARGET_CONFIG does not exist."
             exit 1
           fi
 
-          if [ ! -d "$MTD_RS_SCRIPT" ]; then
-            echo "Error: Directory $MTD_RS_SCRIPT does not exist."
+          if [ ! -f "$MTD_RS_SCRIPT" ]; then
+            echo "Error: File $MTD_RS_SCRIPT does not exist."
             exit 1
           fi
 
