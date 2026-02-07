@@ -129,6 +129,7 @@ jobs:
 
       - name: Prepare Artifacts and Checksums
         run: |
+          cd openwrt
           # Путь к папке с результатами сборки
           OUTPUT_DIR="openwrt/bin/targets/mediatek/filogic"
 
@@ -136,9 +137,7 @@ jobs:
           cp "$TARGET_CONFIG" "$OUTPUT_DIR/user.config"
           cp "$PACKAGES_LIST" "$OUTPUT_DIR/user_packages.txt"
 
-          cd "$OUTPUT_DIR"
-          rm -f sha256sums
-          find -type f -exec sha256sum -b '{}' \; > sha256sums
+          make -j$(nproc) checksum
 
 
 
