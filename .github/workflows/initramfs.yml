@@ -138,7 +138,7 @@ jobs:
 
           cd "$OUTPUT_DIR"
           rm -f sha256sums
-          sha256sum * > sha256sums
+          find -type f -exec sha256sum -b '{}' \; > sha256sums
 
 
 
