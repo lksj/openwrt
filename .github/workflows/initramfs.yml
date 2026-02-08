@@ -126,6 +126,7 @@ jobs:
       - name: Prepare Artifacts and Checksums
         run: |
           # Путь к папке с результатами сборки
+          set -x
           OUTPUT_DIR="openwrt/bin/targets/mediatek/filogic"
 
           if [ ! -d "$OUTPUT_DIR" ]; then
