@@ -6,11 +6,17 @@ on:
       tag_name:
         description: 'Имя тега для релиза'
         required: true
-        default: 'v24.10.5-custom'
+        default: 'v24.10.5-build'
 
   push:
     tags:
-      - 'v*-build' # Сработает при git push origin v1.2.3
+      - 'v*-build' # Сработает при git push origin v1.2.3-build
+
+env:
+  BUILD_DATA_NAME: ".build_data"
+  PACKAGES_LIST_NAME: "packages.txt"
+  TARGET_CONFIG_NAME: "target.config"
+  MTD_RS_SCRIPT_NAME: "mtd-rs.sh"
 
 
 jobs:
@@ -39,6 +45,48 @@ jobs:
           git clone --branch v24.10.5 https://github.com/lksj/openwrt.git openwrt
           cd openwrt
 
+      - name: Export variables
+        run: |
+          # Формируем полные пути на основе $GITHUB_WORKSPACE
+          BUILD_DATA="$GITHUB_WORKSPACE/${{ env.BUILD_DATA_NAME }}"
+          PACKAGES_LIST="$BUILD_DATA/${{ env.PACKAGES_LIST_NAME }}"
+          TARGET_CONFIG="$BUILD_DATA/${{ env.TARGET_CONFIG_NAME }}"
+          MTD_RS_SCRIPT="$BUILD_DATA/${{ env.MTD_RS_SCRIPT_NAME }}"
+
+
+          # Передаем проверенные пути "наверх" в глобальную среду GitHub
+          # Теперь эти имена будут доступны во ВСЕХ следующих шагах
+          echo "BUILD_DATA=$BUILD_DATA" >>$GITHUB_ENV
+          echo "PACKAGES_LIST=$PACKAGES_LIST" >>$GITHUB_ENV
+          echo "TARGET_CONFIG=$TARGET_CONFIG" >>$GITHUB_ENV
+          echo "MTD_RS_SCRIPT=$MTD_RS_SCRIPT" >>$GITHUB_ENV
+
+
+      - name: Validate paths and files
+        run: |
+
+          # Проверка существования каталога
+          if [ ! -d "$BUILD_DATA" ]; then
+            echo "Error: Directory $BUILD_DATA does not exist."
+            exit 1
+          fi
+
+          if [ ! -f "$TARGET_CONFIG" ]; then
+            echo "Error: File $TARGET_CONFIG does not exist."
+            exit 1
+          fi
+
+          if [ ! -f "$PACKAGES_LIST" ]; then
+            echo "Error: File $PACKAGES_LIST does not exist."
+            exit 1
+          fi
+
+          if [ ! -f "$MTD_RS_SCRIPT" ]; then
+            echo "Error: File $MTD_RS_SCRIPT does not exist."
+            exit 1
+          fi
+
+
       - name: Update Feeds
         run: |
           cd openwrt
@@ -50,22 +98,16 @@ jobs:
           cd openwrt
 
           # 1. Применяем конфиг железа (target.config)
-          if [ -f "$GITHUB_WORKSPACE/.build_data/target.config" ]; then
-            sed -e 's/#.*//' -e '/^$/d' "$GITHUB_WORKSPACE/.build_data/target.config" >> .config
-          fi
+            sed -e 's/#.*//' -e '/^$/d' "$TARGET_CONFIG" >> .config
 
           # 2. Добавляем пакеты (packages.txt)
-          if [ -f "$GITHUB_WORKSPACE/.build_data/packages.txt" ]; then
-            sed -e 's/#.*//' -e 's/^-.*//' -e '/^$/d' "$GITHUB_WORKSPACE/build_data/packages.txt" | sort -u | while read -r pkg; do
+            sed -e 's/#.*//' -e 's/^-.*//' -e '/^$/d' "$PACKAGES_LIST" | sort -u | while read -r pkg; do
               echo "CONFIG_PACKAGE_$pkg=y" >> .config
             done
-          fi
 
           # 3. Копируем внешний скрипт в структуру образа
-          if [ -f "$GITHUB_WORKSPACE/.build_date/files/etc/scripts/mtd-rs.sh" ]; then
             mkdir -p files/etc/scripts
-            cp "$GITHUB_WORKSPACE/.build_date/files/etc/scripts/mtd-rs.sh" files/etc/scripts/mtd-rs.sh
-          fi
+            cp "$MTD_RS_SCRIPT" files/etc/scripts/mtd-rs.sh
 
           make defconfig
 
