@@ -122,14 +122,26 @@ jobs:
           make -j$(nproc) || make -j1 V=s
           make -j$(nproc) target/install
 
-      - name: Prepare Artifacts
-        if: always()
+
+      - name: Prepare Artifacts and Checksums
         run: |
-          mkdir -p bin_out
-          find openwrt/bin/targets/mediatek/filogic/ -name "*-initramfs.itb" -exec cp {} bin_out/ \;
-          cp openwrt/.config bin_out/build.config
-          cp $GITHUB_WORKSPACE/.build_date/packages.txt bin_out/installed_packages.txt || touch bin_out/installed_packages.txt
-          cd bin_out && sha256sum *.itb > sha256sums.txt || true
+          cd openwrt
+
+          # Путь к папке с результатами сборки
+          OUTPUT_DIR="bin/targets/mediatek/filogic"
+
+          if [ ! -d "$OUTPUT_DIR" ]; then
+            echo "Error: Directory $OUTPUT_DIR does not exist."
+            exit 1
+          fi
+
+          # Копируем конфиги для истории в релиз
+          cp "$TARGET_CONFIG" "$OUTPUT_DIR/user.config"
+          cp "$PACKAGES_LIST" "$OUTPUT_DIR/user_packages.txt"
+
+          rm -f "$OUTPUT_DIR/sha256sums"
+          make -j$(nproc) checksum
+
 
 #     - name: Delete Old Releases
 #       if: success()
@@ -157,9 +169,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
           files: |
-            openwrt/bin/targets/mediatek/filogic/*-initramfs.itb
-            openwrt/bin/targets/mediatek/filogic/config.buildinfo
-            openwrt/bin/targets/mediatek/filogic/sha256sums
+            openwrt/bin/targets/mediatek/filogic/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
